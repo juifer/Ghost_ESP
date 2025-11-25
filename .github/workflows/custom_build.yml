@@ -40,7 +40,7 @@ on:
         required: false
         type: string
       use_touch:
-        description: 'Enable Touch Support (auto-enabled for some displays)'
+        description: 'Enable Touch Support'
         required: true
         type: boolean
         default: false
@@ -68,29 +68,21 @@ jobs:
           case "${{ github.event.inputs.display_type }}" in
             "ESP32-S3-Cardputer"|"LillyGoTWatch_S3"|"Waveshare_LCD"|"Crowtech_LCD")
               if [ "${{ github.event.inputs.board_type }}" != "esp32s3" ]; then
-                echo "Error: ${{ github.event.inputs.display_type }} requires ESP32-S3 board type"
+                echo "Error: This display requires ESP32-S3"
                 exit 1
               fi
               ;;
             "MarauderV4_FlipperHub"|"MarauderV6_AwokDual"|"AwokMini"|"CYD2USB"|"CYDMicroUSB"|"CYDDualUSB"|"CYD2USB2.4_Inch")
               if [ "${{ github.event.inputs.board_type }}" != "esp32" ]; then
-                echo "Error: ${{ github.event.inputs.display_type }} requires ESP32 board type"
+                echo "Error: This display requires ESP32"
                 exit 1
-              fi
-              ;;
-          esac
-
-          case "${{ github.event.inputs.display_type }}" in
-            "Waveshare_LCD"|"Crowtech_LCD")
-              if [ "${{ github.event.inputs.flash_size }}" == "4MB" ]; then
-                echo "::warning::7-inch displays recommended: 8MB+"
               fi
               ;;
           esac
 
           if [ "${{ github.event.inputs.display_type }}" == "custom" ]; then
             if [ -z "${{ github.event.inputs.screen_width }}" ] || [ -z "${{ github.event.inputs.screen_height }}" ]; then
-              echo "Error: Width & Height required for custom"
+              echo "Error: Width & Height required for custom display"
               exit 1
             fi
           fi
@@ -135,6 +127,7 @@ EOF
             fi
           fi
 
+          # Touchscreen enable logic
           if [ "${{ github.event.inputs.use_touch }}" == "true" ] || \
              [ "${{ github.event.inputs.display_type }}" == "ESP32-S3-Cardputer" ] || \
              [ "${{ github.event.inputs.display_type }}" == "LillyGoTWatch_S3" ] || \
@@ -183,10 +176,6 @@ EOF
       - name: Build Summary
         run: |
           echo "### Build Complete! 🎉" >> $GITHUB_STEP_SUMMARY
-          echo "- Board Type: ${{ github.event.inputs.board_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Display Type: ${{ github.event.inputs.display_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Board: ${{ github.event.inputs.board_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Display: ${{ github.event.inputs.display_type }}" >> $GITHUB_STEP_SUMMARY
           echo "- Flash Size: ${{ github.event.inputs.flash_size }}" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event.inputs.display_type }}" == "custom" ]; then
-            echo "- Screen: ${{ github.event.inputs.screen_width }}x${{ github.event.inputs.screen_height }}" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "- Touch Support: $( [[ \"${{ github.event.inputs.use_touch }}\" == \"true\" ]] && echo Yes || echo No )" >> $GITHUB_STEP_SUMMARY

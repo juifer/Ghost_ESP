@@ -61,11 +61,10 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Validate Configuration
         run: |
-          # Board-Display Compatibility Check
           case "${{ github.event.inputs.display_type }}" in
             "ESP32-S3-Cardputer"|"LillyGoTWatch_S3"|"Waveshare_LCD"|"Crowtech_LCD")
               if [ "${{ github.event.inputs.board_type }}" != "esp32s3" ]; then
@@ -81,19 +80,17 @@ jobs:
               ;;
           esac
 
-          # Flash Size Validation
           case "${{ github.event.inputs.display_type }}" in
             "Waveshare_LCD"|"Crowtech_LCD")
               if [ "${{ github.event.inputs.flash_size }}" == "4MB" ]; then
-                echo "::warning::7-inch displays are recommended to use 8MB or larger flash size"
+                echo "::warning::7-inch displays recommended: 8MB+"
               fi
               ;;
           esac
 
-          # Custom Display Validation
           if [ "${{ github.event.inputs.display_type }}" == "custom" ]; then
             if [ -z "${{ github.event.inputs.screen_width }}" ] || [ -z "${{ github.event.inputs.screen_height }}" ]; then
-              echo "Error: Screen width and height are required for custom display configuration"
+              echo "Error: Width & Height required for custom"
               exit 1
             fi
           fi
@@ -112,58 +109,32 @@ jobs:
 
       - name: Generate Custom SDK Config
         run: |
-          # Handle predefined display configurations
           if [ "${{ github.event.inputs.display_type }}" != "custom" ] && [ "${{ github.event.inputs.display_type }}" != "none" ]; then
             case "${{ github.event.inputs.display_type }}" in
-              "MarauderV4_FlipperHub")
-                cp "configs/sdkconfig.marauderv4" sdkconfig.defaults
-                ;;
-              "MarauderV6_AwokDual")
-                cp "configs/sdkconfig.marauderv6" sdkconfig.defaults
-                ;;
-              "AwokMini")
-                cp "configs/sdkconfig.awokmini" sdkconfig.defaults
-                ;;
-              "ESP32-S3-Cardputer")
-                cp "configs/sdkconfig.cardputer" sdkconfig.defaults
-                ;;
-              "LillyGoTWatch_S3")
-                cp "configs/sdkconfig.S3TWatch" sdkconfig.defaults
-                ;;
-              "CYD2USB")
-                cp "configs/sdkconfig.CYD2USB" sdkconfig.defaults
-                ;;
-              "CYDMicroUSB")
-                cp "configs/sdkconfig.CYDMicroUSB" sdkconfig.defaults
-                ;;
-              "CYDDualUSB")
-                cp "configs/sdkconfig.CYDDualUSB" sdkconfig.defaults
-                ;;
-              "CYD2USB2.4_Inch")
-                cp "configs/sdkconfig.CYD2USB2.4Inch" sdkconfig.defaults
-                ;;
-              "Waveshare_LCD")
-                cp "configs/sdkconfig.waveshare7inch" sdkconfig.defaults
-                ;;
-              "Crowtech_LCD")
-                cp "configs/sdkconfig.crowtech7inch" sdkconfig.defaults
-                ;;
+              "MarauderV4_FlipperHub") cp "configs/sdkconfig.marauderv4" sdkconfig.defaults ;;
+              "MarauderV6_AwokDual") cp "configs/sdkconfig.marauderv6" sdkconfig.defaults ;;
+              "AwokMini") cp "configs/sdkconfig.awokmini" sdkconfig.defaults ;;
+              "ESP32-S3-Cardputer") cp "configs/sdkconfig.cardputer" sdkconfig.defaults ;;
+              "LillyGoTWatch_S3") cp "configs/sdkconfig.S3TWatch" sdkconfig.defaults ;;
+              "CYD2USB") cp "configs/sdkconfig.CYD2USB" sdkconfig.defaults ;;
+              "CYDMicroUSB") cp "configs/sdkconfig.CYDMicroUSB" sdkconfig.defaults ;;
+              "CYDDualUSB") cp "configs/sdkconfig.CYDDualUSB" sdkconfig.defaults ;;
+              "CYD2USB2.4_Inch") cp "configs/sdkconfig.CYD2USB2.4Inch" sdkconfig.defaults ;;
+              "Waveshare_LCD") cp "configs/sdkconfig.waveshare7inch" sdkconfig.defaults ;;
+              "Crowtech_LCD") cp "configs/sdkconfig.crowtech7inch" sdkconfig.defaults ;;
             esac
           else
-            # Start with base config for the selected board
             cp "configs/sdkconfig.default.${{ github.event.inputs.board_type }}" sdkconfig.defaults
-            
-            # Add screen configuration if dimensions are provided and custom display is selected
+
             if [ "${{ github.event.inputs.display_type }}" == "custom" ]; then
               cat >> sdkconfig.defaults << EOF
-          CONFIG_WITH_SCREEN=y
-          CONFIG_TFT_WIDTH=${{ github.event.inputs.screen_width }}
-          CONFIG_TFT_HEIGHT=${{ github.event.inputs.screen_height }}
-          EOF
+CONFIG_WITH_SCREEN=y
+CONFIG_TFT_WIDTH=${{ github.event.inputs.screen_width }}
+CONFIG_TFT_HEIGHT=${{ github.event.inputs.screen_height }}
+EOF
             fi
           fi
-          
-          # Handle touch support
+
           if [ "${{ github.event.inputs.use_touch }}" == "true" ] || \
              [ "${{ github.event.inputs.display_type }}" == "ESP32-S3-Cardputer" ] || \
              [ "${{ github.event.inputs.display_type }}" == "LillyGoTWatch_S3" ] || \
@@ -171,7 +142,6 @@ jobs:
             echo "CONFIG_USE_TOUCHSCREEN=y" >> sdkconfig.defaults
           fi
 
-          # Configure flash size
           echo "CONFIG_ESPTOOLPY_FLASHSIZE=\"${{ github.event.inputs.flash_size }}\"" >> sdkconfig.defaults
 
       - name: Set up ESP-IDF and Target
@@ -184,11 +154,7 @@ jobs:
         run: |
           BOOTLOADER_URL="https://cdn.spookytools.com/bootloaders/${{ github.event.inputs.board_type }}.bin"
           BOOTLOADER_PATH="build/bootloader.bin"
-          echo "Downloading bootloader from $BOOTLOADER_URL..."
-          curl -L -o "$BOOTLOADER_PATH" "$BOOTLOADER_URL" || {
-            echo "Warning: Could not download bootloader, continuing with build..."
-            rm -f "$BOOTLOADER_PATH"
-          }
+          curl -L -o "$BOOTLOADER_PATH" "$BOOTLOADER_URL" || echo "Bootloader download failed"
 
       - name: Clean and Build Project
         env:
@@ -209,7 +175,7 @@ jobs:
           cd ..
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ghost_esp_${{ github.event.inputs.board_type }}_${{ github.event.inputs.display_type }}
           path: ghost_esp_${{ github.event.inputs.board_type }}_${{ github.event.inputs.display_type }}.zip
@@ -217,19 +183,10 @@ jobs:
       - name: Build Summary
         run: |
           echo "### Build Complete! 🎉" >> $GITHUB_STEP_SUMMARY
-          echo "- **Board Type:** ${{ github.event.inputs.board_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Display Type:** ${{ github.event.inputs.display_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Flash Size:** ${{ github.event.inputs.flash_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Board Type: ${{ github.event.inputs.board_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Display Type: ${{ github.event.inputs.display_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Flash Size: ${{ github.event.inputs.flash_size }}" >> $GITHUB_STEP_SUMMARY
           if [ "${{ github.event.inputs.display_type }}" == "custom" ]; then
-            echo "- **Screen Resolution:** ${{ github.event.inputs.screen_width }}x${{ github.event.inputs.screen_height }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Screen: ${{ github.event.inputs.screen_width }}x${{ github.event.inputs.screen_height }}" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "- **Touch Support:** $(
-            if [ "${{ github.event.inputs.use_touch }}" == "true" ] || \
-               [ "${{ github.event.inputs.display_type }}" == "ESP32-S3-Cardputer" ] || \
-               [ "${{ github.event.inputs.display_type }}" == "LillyGoTWatch_S3" ] || \
-               [[ "${{ github.event.inputs.display_type }}" == CYD* ]]; then
-              echo "Yes"
-            else
-              echo "No"
-            fi
-          )" >> $GITHUB_STEP_SUMMARY
+          echo "- Touch Support: $( [[ \"${{ github.event.inputs.use_touch }}\" == \"true\" ]] && echo Yes || echo No )" >> $GITHUB_STEP_SUMMARY

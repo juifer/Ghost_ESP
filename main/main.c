@@ -12,6 +12,11 @@
 #endif
 #include <esp_log.h>
 
+// 👇 ADDED FOR DEEP SLEEP
+#include "driver/gpio.h"
+#include "esp_sleep.h"
+#include "freertos/task.h"
+
 #ifdef CONFIG_WITH_ETHERNET
 // TODO
 #endif
@@ -20,7 +25,34 @@
 #include "managers/views/splash_screen.h"
 #endif
 
-int ieee80211_raw_frame_sanity_check(int32_t arg, int32_t arg2, int32_t arg3) { return 0; }
+int ieee80211_raw_frame_sanity_check(int32_t arg, int32_t arg2, int32_t arg3) { 
+    return 0; 
+}
+
+// =====================================================
+// 🚀 POWER OFF FUNCTION (FOR T-DISPLAY S3)
+// =====================================================
+void ghost_poweroff(void) {
+
+    // Turn off display power (GPIO 15 on T-Display S3)
+    gpio_config_t io_conf = {
+        .pin_bit_mask = 1ULL << 15,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_down_en = 0,
+        .pull_up_en = 0,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    gpio_config(&io_conf);
+    gpio_set_level(15, 0);   // Screen OFF
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Enter deep sleep until reset
+    esp_deep_sleep_start();
+}
+// =====================================================
+
 
 void app_main(void) {
     serial_manager_init();
@@ -39,13 +71,9 @@ void app_main(void) {
 #endif
 
     command_init();
-
     register_commands();
-
     settings_init(&G_Settings);
-
     ap_manager_init();
-
     esp_err_t err = sd_card_init();
 
 #ifdef CONFIG_WITH_SCREEN
